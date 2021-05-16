@@ -310,8 +310,7 @@ def importModelfromLP(modelname, k, f):
     if os.path.isfile(lp_path):
         rd = ModelReader()
         mdl = rd.read_model(lp_path, model_name=modelname)    
-    else:
-        c, n_nodes, n_edges, nodes, arcs, k_arcs, edges = read(f)
-        mdl = buildModel(modelname, k, f, nodes, arcs, k_arcs, n_edges, c)
+    else:       
+        mdl = buildModel(modelname, k, f)
         
     return mdl
