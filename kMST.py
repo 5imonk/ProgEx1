@@ -12,19 +12,22 @@ from kMST_Lib import update_table
 from kMST_Lib import initialize
 from kMST_Lib import importModelfromLP
 from kMST_Lib import buildModel
+import warnings
+
 
 #modelnames = ['MTZ']
 modelnames = ['MTZ', 'SCF', 'MCF', 'MCF2']
 #modelnames = ['MCF', 'MCF2']
 
 # graphs from to that are considered
-g_min = 1 #first graph
-g_max = 4 #last graph
+g_min = 5 #first graph
+g_max = 6 #last graph
 
 # if the model constraints, variables are changed new lp models have to be written
 # then turn on True
 read_lp_model = True
-
+if read_lp_model:
+    warnings.warn("If read_lp_model Flag ist set TRUE changes made for variables and constraints are not yet reflected in the model as it is read from an LP file")    
 
 filenames, run_log, table = initialize()
 
