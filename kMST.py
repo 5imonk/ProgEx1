@@ -15,13 +15,13 @@ from kMST_Lib import buildModel
 import warnings
 
 
-#modelnames = ['MTZ']
-modelnames = ['MTZ', 'SCF', 'MCF', 'MCF2']
+modelnames = ['MTZ', 'SCF']
+#modelnames = ['MTZ', 'SCF', 'MCF', 'MCF2']
 #modelnames = ['MCF', 'MCF2']
 
 # graphs from to that are considered
 g_min = 5 #first graph
-g_max = 6 #last graph
+g_max = 8 #last graph
 
 # if the model constraints, variables are changed new lp models have to be written
 # then turn on True
