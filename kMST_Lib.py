@@ -43,11 +43,20 @@ def read(filename):
     return c, n_nodes, n_edges, nodes, arcs, k_arcs, edges
 
 
-def build_common_vars(mdl, nodes, arcs):
+def build_common_vars(mdl, nodes, arcs):    
     node_vars = mdl.binary_var_list(nodes, name='x')
     arc_vars = mdl.binary_var_list(arcs, name='a')
     # edge_vars = mdl.binary_var_list(edges, name='e')
     return mdl, node_vars, arc_vars
+
+
+#only for MCF
+def build_common_k_vars(mdl, n_nodes, nodes, arcs): 
+    k_var = mdl.integer_var(lb=1, ub=n_nodes, name='k')
+    node_vars = mdl.binary_var_list(nodes, name='x')
+    arc_vars = mdl.binary_var_list(arcs, name='a')
+    # edge_vars = mdl.binary_var_list(edges, name='e')
+    return mdl, node_vars, arc_vars, k_var
 
 
 def build_common_constraints(mdl, nodes, node_vars, arcs, arc_vars, k, n_edges):
@@ -80,9 +89,39 @@ def build_common_constraints(mdl, nodes, node_vars, arcs, arc_vars, k, n_edges):
 
     return mdl
 
+#only for MCF
+def build_common_k_constraints(mdl, nodes, node_vars, arcs, arc_vars, k_var, n_edges):
+    mdl.add_constraint(mdl.sum(node_vars[i]
+                               for i in nodes) == k_var + 1, ctname='k_nodes')
+    mdl.add_constraint(mdl.sum(arc_vars[l] for l, a in enumerate(
+        arcs)) == k_var, ctname='k_arcs')  # actually k-1 arcs
 
-def build_MTZ_vars(mdl, nodes, k):
-    u_vars = mdl.integer_var_list(nodes, lb=0, ub=k, name='u')
+    mdl.add_constraint(node_vars[0] == 1, ctname='root_active')
+    mdl.add_constraint(mdl.sum(arc_vars[l] for l, a in enumerate(
+        arcs) if a[1] == 0) == 0, ctname='root_in')
+    mdl.add_constraint(mdl.sum(arc_vars[l] for l, a in enumerate(
+        arcs) if a[0] == 0) == 1, ctname='root_out')
+
+    for l, a in enumerate(arcs):
+        if l < n_edges:
+            ctname = 'one_direction_' + str(a)
+            mdl.add_constraint(
+                arc_vars[l] + arc_vars[l+n_edges] <= node_vars[a[0]], ctname=ctname)
+        else:
+            ctname = 'one_direction_' + str(a)
+            mdl.add_constraint(
+                arc_vars[l] + arc_vars[l-n_edges] <= node_vars[a[0]], ctname=ctname)
+
+    for j in nodes:
+        if j > 0:
+            ctname = 'one_predecessor_' + str(j)
+            mdl.add_constraint(mdl.sum(arc_vars[l] for l, a in enumerate(
+                arcs) if a[1] == j) == node_vars[j], ctname=ctname)
+
+    return mdl
+
+def build_MTZ_vars(mdl, nodes):
+    u_vars = mdl.integer_var_list(nodes, lb=0, name='u')
 
     return mdl, u_vars
 
@@ -92,8 +131,8 @@ def build_MTZ_constraints(mdl, nodes, node_vars, arcs, arc_vars, u_vars, k):
 
     for i in nodes:
         if i > 0:
-            ctname = 'u_lower_' + str(i)
-            mdl.add_constraint(node_vars[i] <= u_vars[i], ctname=ctname)
+            ctname = 'u_upper_' + str(i)
+            mdl.add_constraint(u_vars[i] <= k * node_vars[i], ctname=ctname)
 
     for l, a in enumerate(arcs):
         ctname = 'sequential_' + str(a)
@@ -138,7 +177,6 @@ def build_MCF_vars(mdl, k_arcs):
 
 
 def build_MCF_constraints(mdl, nodes, node_vars, arcs, arc_vars, k_arcs, fk_vars):
-
     for i in nodes:
         if i > 0:
             ctname = 'root_out_flow' + str(i)
@@ -170,7 +208,7 @@ def build_MCF_constraints(mdl, nodes, node_vars, arcs, arc_vars, k_arcs, fk_vars
 
 
 def build_MCF2_constraints(mdl, nodes, node_vars, arcs, arc_vars, k_arcs, fk_vars):
-
+    print('something')
     for i in nodes:
         if i > 0:
             ctname = 'root_out_flow' + str(i)
@@ -239,7 +277,7 @@ def update_table(table, mdl, k, f, pre_time):
 
     details = mdl.get_solve_details()
     stats = mdl.statistics
-    table.append([mdl.name, f[:3], k, mdl.objective_value, details.time, details.mip_relative_gap, details.status, pre_time,
+    table.append([mdl.name, f[:3], k, int(mdl.objective_value), details.time, details.mip_relative_gap, details.status, pre_time,
                   stats.number_of_variables, stats.number_of_binary_variables,
                   stats.number_of_integer_variables, stats.number_of_continuous_variables,
                   stats.number_of_constraints, stats.number_of_linear_constraints,
@@ -271,25 +309,73 @@ def initialize():
 def buildModel(modelname, k, f):
     c, n_nodes, n_edges, nodes, arcs, k_arcs, edges = read(f)
     
+    if modelname[0:3] == 'MCF':
+        mdl = buildModel_MCF(modelname, k, f)
+        print('here')
+    else:    
+        mdl = Model(modelname)
+        
+        mdl, node_vars, arc_vars = build_common_vars(mdl, nodes, arcs)
+        mdl = build_common_constraints(
+            mdl, nodes, node_vars, arcs, arc_vars, k, n_edges)
+    
+        if modelname == 'MTZ':
+            mdl, u_vars = build_MTZ_vars(mdl, nodes)
+            mdl = build_MTZ_constraints(
+                mdl, nodes, node_vars, arcs, arc_vars, u_vars, k)
+        elif modelname == 'SCF':
+            mdl, f_vars = build_SCF_vars(mdl, arcs, k)
+            mdl = build_SCF_constraints(
+                mdl, nodes, node_vars, arcs, arc_vars, f_vars, k)
+        # elif modelname == 'MCF':
+        #     mdl, fk_vars = build_MCF_vars(mdl, k_arcs)
+        #     mdl = build_MCF_constraints(
+        #         mdl, nodes, node_vars, arcs, arc_vars, k_arcs, fk_vars)
+        # elif modelname == 'MCF2':        
+        #     mdl, fk_vars = build_MCF_vars(mdl, k_arcs)
+        #     mdl = build_MCF2_constraints(
+        #         mdl, nodes, node_vars, arcs, arc_vars, k_arcs, fk_vars)
+    
+        mdl.minimize(mdl.sum(arc_vars[l]*c[l] for l, a in enumerate(arcs)))  
+        
+        cwd = os.getcwd()
+        if k == 2 and f == 'g01.dat':
+            mdl.export_as_lp(cwd)
+            
+        mdl.export_as_lp(cwd + '\lp\lp_' + modelname + str(f[:3]) + 'k' + str(k) +'.lp')
+    
+    print(mdl)
+    return mdl
+
+def importModelfromLP(modelname, k, f):
+    
+    if modelname[0:3] == 'MCF':        
+        mdl = importModelfromLP_MCF(modelname, k, f)
+    else:
+        cwd = os.getcwd()
+        lp_path = cwd + '\lp\lp_' + modelname + str(f[:3]) + 'k' + str(k) + '.lp'
+        if os.path.isfile(lp_path):
+            rd = ModelReader()
+            mdl = rd.read_model(lp_path, model_name=modelname)    
+        else:       
+            mdl = buildModel(modelname, k, f)            
+            
+    return mdl
+
+def buildModel_MCF(modelname, k, f):
+    c, n_nodes, n_edges, nodes, arcs, k_arcs, edges = read(f)
+    
     mdl = Model(modelname)
     
-    mdl, node_vars, arc_vars = build_common_vars(mdl, nodes, arcs)
+    mdl, node_vars, arc_vars, k_var = build_common_k_vars(mdl, n_nodes, nodes, arcs)
     mdl = build_common_constraints(
-        mdl, nodes, node_vars, arcs, arc_vars, k, n_edges)
-
-    if modelname == 'MTZ':
-        mdl, u_vars = build_MTZ_vars(mdl, nodes, k)
-        mdl = build_MTZ_constraints(
-            mdl, nodes, node_vars, arcs, arc_vars, u_vars, k)
-    elif modelname == 'SCF':
-        mdl, f_vars = build_SCF_vars(mdl, arcs, k)
-        mdl = build_SCF_constraints(
-            mdl, nodes, node_vars, arcs, arc_vars, f_vars, k)
-    elif modelname == 'MCF':
+        mdl, nodes, node_vars, arcs, arc_vars, k_var, n_edges)
+    
+    if modelname == 'MCF':
         mdl, fk_vars = build_MCF_vars(mdl, k_arcs)
         mdl = build_MCF_constraints(
             mdl, nodes, node_vars, arcs, arc_vars, k_arcs, fk_vars)
-    elif modelname == 'MCF2':
+    elif modelname == 'MCF2':        
         mdl, fk_vars = build_MCF_vars(mdl, k_arcs)
         mdl = build_MCF2_constraints(
             mdl, nodes, node_vars, arcs, arc_vars, k_arcs, fk_vars)
@@ -300,17 +386,26 @@ def buildModel(modelname, k, f):
     if k == 2 and f == 'g01.dat':
         mdl.export_as_lp(cwd)
         
-    mdl.export_as_lp(cwd + '\lp\lp_'+mdl.name+'k'+str(k)+str(f[:3])+'.lp')
+    mdl.export_as_lp(cwd + '\lp\lp_'+ modelname + str(f[:3]) + '.lp')
+    
+    #set k
+    mdl.add_constraint(k_var == k, ctname='set_k')    
     
     return mdl
 
-def importModelfromLP(modelname, k, f):
+
+def importModelfromLP_MCF(modelname, k, f):
+    
     cwd = os.getcwd()
-    lp_path = cwd + '\lp\lp_' + modelname + 'k' + str(k) + str(f[:3]) + '.lp'
+    lp_path = cwd + '\lp\lp_' + modelname + str(f[:3]) + '.lp'
     if os.path.isfile(lp_path):
         rd = ModelReader()
-        mdl = rd.read_model(lp_path, model_name=modelname)    
-    else:       
-        mdl = buildModel(modelname, k, f)
+        mdl = rd.read_model(lp_path, model_name=modelname)  
+        
+        #set k
+        k_var = mdl.get_var_by_name('k')
+        mdl.add_constraint(k_var == k, ctname='set_k')
+    else:          
+        mdl = buildModel_MCF(modelname, k, f)
         
     return mdl

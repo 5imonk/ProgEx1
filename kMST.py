@@ -15,13 +15,14 @@ from kMST_Lib import buildModel
 import warnings
 
 
-modelnames = ['MTZ', 'SCF']
-#modelnames = ['MTZ', 'SCF', 'MCF', 'MCF2']
-#modelnames = ['MCF', 'MCF2']
+#modelnames = ['MTZ', 'SCF']
+#modelnames = ['MCF2']
+#modelnames = ['MTZ', 'SCF']
+modelnames = ['MTZ','SCF']
 
 # graphs from to that are considered
-g_min = 5 #first graph
-g_max = 8 #last graph
+g_min = 1 #first graph
+g_max = 10 #last graph
 
 # if the model constraints, variables are changed new lp models have to be written
 # then turn on True
@@ -42,12 +43,12 @@ for i, f in enumerate(filenames):
                 
                 start_time = time.perf_counter()
                 
-                if read_lp_model: 
-                    mdl = importModelfromLP(modelname, k, f)                   
+                if read_lp_model:                     
+                    mdl = importModelfromLP(modelname, k, f)
                 else:
                     mdl = buildModel(modelname, k, f)
                 
-                mdl.set_time_limit(720)
+                mdl.set_time_limit(3600)
                 print('\n' + mdl.name + ', graph ' + f + ', k=' + str(k) + '\n') 
                 
                 end_time = time.perf_counter()
@@ -59,4 +60,4 @@ for i, f in enumerate(filenames):
                 table = update_table(table, mdl, k, f, pre_time)
                 
                 df = pd.DataFrame(table[1:], columns=table[0])
-                df.to_csv('kMST.csv', sep =',', float_format="%.0f")
+                df.to_csv('kMST.csv', sep =',', float_format="%.4f")
