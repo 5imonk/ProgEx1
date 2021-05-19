@@ -15,17 +15,26 @@ from kMST_Lib import buildModel
 import warnings
 
 
-#modelnames = ['MTZ', 'SCF']
+#MTZ Miller Tucker Zemlin
+#SCF Single Commodity Flow
+#MCF weaker Multi Commmodity Formulation 
+#MCF2 stronger Multi Commmodity Formulation 
+
+modelnames = ['MTZ','SCF','MCF2']
+#modelnames = ['MCF', 'MCF2']
 #modelnames = ['MCF2']
 #modelnames = ['MTZ', 'SCF']
-modelnames = ['MTZ','SCF']
 
 # graphs from to that are considered
 g_min = 1 #first graph
-g_max = 10 #last graph
+g_max = 5 #last graph
+
+# set k as k = k_range |V|
+k_range = [0.2, 0.5]
 
 # if the model constraints, variables are changed new lp models have to be written
 # then turn on True
+# if no lp files are there formulation is made from scratch anyway
 read_lp_model = True
 if read_lp_model:
     warnings.warn("If read_lp_model Flag ist set TRUE changes made for variables and constraints are not yet reflected in the model as it is read from an LP file")    
@@ -37,8 +46,8 @@ for i, f in enumerate(filenames):
         n_nodes = [int(x) for x in next(ff).split()][0]   
                                         
     for modelname in modelnames:
-        if i+1 <= g_max and i+1 >= g_min:            
-            for sc in [0.2, 0.5]:                
+        if i+1 <= g_max and i+1 >= g_min: 
+            for sc in k_range:                
                 k = int(sc*(n_nodes-1))
                 
                 start_time = time.perf_counter()
@@ -48,7 +57,7 @@ for i, f in enumerate(filenames):
                 else:
                     mdl = buildModel(modelname, k, f)
                 
-                mdl.set_time_limit(3600)
+                mdl.set_time_limit(900)
                 print('\n' + mdl.name + ', graph ' + f + ', k=' + str(k) + '\n') 
                 
                 end_time = time.perf_counter()

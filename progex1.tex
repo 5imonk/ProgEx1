@@ -1,0 +1,326 @@
+\documentclass{article}
+\usepackage{fullpage}
+\usepackage{amssymb,amsmath}
+\usepackage{booktabs}
+\newcommand{\R}{\mathbb{R}}
+\renewcommand{\baselinestretch}{2}
+\author{Mohamed Boulouma, Simon Konzett}
+\title{Mathematical Programming: ProgEx 1}
+
+\begin{document}
+	\maketitle
+	\tableofcontents
+	
+	\section{k-MST problem}
+	
+	We have given an undirected graph $G = (V,E)$ with given edge weights $w_e \in \R^+_0, \forall e \in E$ and an integer $0 \leq k \leq |V|$. The goal is to find a minimum weight spanning tree with exactly $k$ nodes.
+	
+	As we can not choose a starting node without loss of generality first an artificial root is introduced to the problem. This root node is called $0 \in V^0 := V \cup \lbrace 0 \rbrace$ from here on. This root is now connected to each node in $V$ with an edge. So we get the graph $G^0 = (V^0, E^0)$ with $E^0 = E \cup \lbrace (0,i) | i \in V \rbrace$. All those edges connecting the root have weight $0$. Next directed arcs are introduced for this formulation. So the set of arcs $A = \lbrace (i,j) | (i,j) \in E^0 \text{ or } (j,i) \in E^0 \rbrace$ is introduced and each arc has the same weight as the edge it is derived from.
+	 
+	So the objective function is
+	\begin{equation}
+		\sum_{(i,j) \in A} w_{ij} a_{ij}
+	\end{equation}
+	where $a_{ij} \in \lbrace 0, 1 \rbrace$ is $1$ if the corresponding edge to the arc $(i,j) \in A$ is in the minimum spanning tree and $0$ otherwise. Similar to the general MST problem constraints are introduced
+	\begin{align}
+		& \sum_{i \in V^0} x_i = k+1 \label{k_nodes} \\
+		& \sum_{(i,j) \in A} a_{ij} = k \label{k_edges} \\			
+		& \sum_{(i,j) \in \delta^-(j)} a_{ij} = x_j & \forall j \in V \label{one_predecessor} \\ 
+		& a_{ij} + a_{ji} \leq x_i & \forall i \in V^0, \, j \in \delta(i) \label{one_direction} \\		
+		& \sum_{(0,i) \in \delta^+(0)} a_{0i} = 1 \label{root_out} \\
+		& \sum_{(i,0) \in \delta^-(0)} a_{i0} = 0	\label{root_in} \\	
+		& x_0 = 1 \label{root_active} \\
+		& x_i \in \lbrace 0,1 \rbrace & \forall \in V^0 \label{nodes} \\
+		& a_{ij} \in \lbrace 0,1 \rbrace & \forall (i,j) \in A \label{arcs}
+	\end{align}
+	where $x_i$ is $1$ if the node $i$ is part of the solution and $0$ otherwise. 
+	
+	Constraint \eqref{k_nodes} allows exactly $k$ nodes of the original problem to be active as in \eqref{root_active} the root node is set to be active. The constraints for the root node \eqref{root_out} and \eqref{root_in} only allow exactly one arc to go out and none in from there. In combination with those two constraints \eqref{k_edges} says that the solution of the original problem has exactly $k-1$ edges. As the solution is a tree with a root every node that is part of the solution has exactly one incoming arc and every inactive node has none. This is reflected in constraint \eqref{one_predecessor}. Last with constraint \eqref{one_direction} it is ensured that each active edge is only represented by one of its corresponding arcs.
+	
+	However still there are subtours allowed and in the next sections those are dealt with three different ideas.
+	
+	\section{Miller Tucker Zemlin}
+	
+	The idea of Miller Tucker Zemlin is to give an order to the nodes that are visited. Therefore a variable $u_i \in \R^+$ for all $i \in V^0$ is introduced and we get the constraints.
+	
+	\begin{align}		
+		& u_i + a_{ij} \leq u_j + k (1-a_{ij}) & \forall (i, j) \in A \label{mtz: u_sequential} \\
+		& u_0 = 0 \label{mtz: root_first} \\	
+		& u_i \leq k x_i &\forall i \in V^0 \label{mtz: u_upper} \\	
+		& u_i \in \R^+ & \forall i \in V^0 \label{mtz: u}
+	\end{align}	
+	Obviously with \eqref{mtz: root_first} the root is set to be the first in order. Constraint \eqref{mtz: u_sequential} ensures the ordering for active arcs and in combination with the upper bound constraint \eqref{mtz: u_upper} always holds on inactive arcs too. The upper bound constraint \eqref{mtz: u_upper} sets $u_i=0$ for inactive nodes $i \in V$ and sets an upper bound of $k$ for active nodes as there are $k+1$ nodes (including the root node with order $0$) to order. However the ordering is still only unique if the solution tree is a path and is unique.	
+	
+	Hence we get the full Miller Tucker Zemlin formulation	
+	\begin{align*}
+		\min & \sum_{(i,j) \in A} w_{ij} a_{ij} 	\\
+		\text{s.t.} \quad & \sum_{i \in V} x_i = k+1  \\
+		& \sum_{(i,j) \in A} a_{ij} = k \\ 
+		& \sum_{(i,j) \in \delta^-(j)} a_{ij} = x_j & \forall j \in V  \\	
+		& a_{ij} + a_{ji} \leq x_i & \forall i \in V^0, \, j \in \delta(i)  \\
+		& x_0 = 1 \\
+		& u_0 = 0 \\
+		& \sum_{(i,0) \in \delta^-(0)} a_{i0} = 0	\\
+		& \sum_{(0,i) \in \delta^+(0)} = 1 \\
+		& u_i \leq k x_i & \forall i \in V^0  \\
+		& u_i + a_{ij} \leq u_j + k (1-a_{ij}) & \forall (i,j) \in A \\
+		& x_i \in \lbrace 0,1 \rbrace & \forall i \in V^0  \\
+		& a_{ij} \in \lbrace 0,1 \rbrace & \forall (i,j) \in A  \\
+		& u_i \in \R^+ & \forall i \in V^0 
+	\end{align*}	
+	
+	\newpage
+	\section{Single Commodity Flow}
+	The next idea to prevent subtours is to send out a commodity that is consumed by the active nodes one at a time. The flow of this commodity is represented by a variable $f_{ij} \in \R^+$ for each arc $(i,j) \in A$.
+	\begin{align}		
+		&\sum_{(0,j) \in \delta^+(0)} f_{0j} = k \label{scf: root_out_flow} \\
+		&\sum_{(j,i) \in \delta^-(i)} f_{ji} - \sum_{(i,j) \in \delta^+(i)} f_{ij} = x_i & \forall i \in V\label{scf: flow} \\
+		&f_{ij} \leq k a_{ij} & \forall (i,j) \in A \label{scf: f_upper} \\
+		&f_{ij} \in \R^+ & \forall (i,j) \in A \label{scf: f}
+	\end{align}	
+	So $k$ commodities have to be sent out to be consumed of the $k$ nodes in the solution. This is reflected in constraint \eqref{scf: root_out_flow}. An active node consumes exactly one commodity which is the flow constraint \eqref{scf: flow} where the difference of the incoming and outgoing flow is compared. The upper bound constraint \eqref{scf: f_upper} is natural for active arcs and sets the flow to $0$ for inactive arcs.
+
+	\newpage
+	Hence we get the full Single Commodity Flow formulation
+	\begin{align*}
+		\min & \sum_{(i,j) \in A} w_{ij} a_{ij} 	\\
+		\text{s.t.} \quad & \sum_{i \in V} x_i = k+1  \\
+		& \sum_{(i,j) \in A} a_{ij} = k \\ 
+		& \sum_{(i,j) \in \delta^-(j)} a_{ij} = x_j & \forall j \in V  \\	
+		& a_{ij} + a_{ji} \leq x_i & \forall i \in V^0, \, j \in \delta(i)  \\
+		& x_0 = 1 \\
+		& \sum_{(i,0) \in \delta^-(0)} a_{i0} = 0	\\
+		& \sum_{(0,i) \in \delta^+(0)} = 1 \\
+		& \sum_{(0,j) \in \delta^+(0)} f_{0j} = k \\
+		& \sum_{(j,i) \in \delta^-(i)} f_{ji} - \sum_{(i,j) \in \delta^+(i)} f_{ij} = x_i & \forall i \in V \\
+		& f_{ij} \leq k a_{ij} & \forall (i,j) \in A  \\
+		& x_i \in \lbrace 0,1 \rbrace & \forall i \in V^0  \\
+		& a_{ij} \in \lbrace 0,1 \rbrace & \forall (i,j) \in A \\
+		& f_{ij} \in \R^+ & \forall (i,j) \in A
+	\end{align*}
+	
+	\newpage
+	\section{Multi Commodity Flow}
+	The next idea to prevent subtours is to send out $k$ different commodities each assigned for exactly one node of the solution and to be consumed in only this node. The flow of a commodity assigned for node $k$ is represented by a variable $f_{ij}^k \in \R^+$ for each arc $(i,j) \in A$.
+	\begin{align}
+		&\sum_{(0,j) \in \delta^+(0)} f_{0j}^k = x_k & \forall k \in V \label{mcf: root_out_flow} \\
+		&\sum_{(j,i) \in \delta^-(i)} f_{ji}^k - \sum_{(i,j) \in \delta^+(i)} f_{ij}^k = 0 & \forall j,k \in V, \, j \neq k  \label{mcf: flow} \\
+		&\sum_{(j,k) \in \delta^-(k)} f_{jk}^k - \sum_{(k,j) \in \delta^+(k)} f_{kj}^k = x_k & \forall k \in V  \label{mcf: last_flow} \\
+		&f_{ij}^k \leq a_{ij} & \forall k \in V, \, \forall (i,j) \in A \label{mcf: f_upper} \\
+		&f_{ij}^k \in \R^+ & \forall k \in V, \, \forall (i,j) \in A \label{mcf: f}
+	\end{align}
+	In the first constraint \eqref{mcf: root_out_flow} each commodity is sent out once for each node of the solution. In the flow constraint \eqref{mcf: flow} it is ensured that the commodity is not consumed by a wrong node as in \eqref{mcf: last_flow} the commodity must be consumed by the assigned node. Lastly there is a natural upper bound for the flow in \eqref{mcf: f_upper}.
+	
+	\newpage
+	Hence we get the full Multi Commodity Flow formulation
+	\begin{align*}
+		\min & \sum_{(i,j) \in A} w_{ij} a_{ij} 	\\
+		\text{s.t.} \quad & \sum_{i \in V} x_i = k+1  \\
+		& \sum_{(i,j) \in A} a_{ij} = k \\ 
+		& \sum_{(i,j) \in \delta^-(j)} a_{ij} = x_j & \forall j \in V  \\	
+		& a_{ij} + a_{ji} \leq x_i & \forall i \in V^0, \, j \in \delta(i)  \\
+		& x_0 = 1 \\
+		& \sum_{(i,0) \in \delta^-(0)} a_{i0} = 0	\\
+		& \sum_{(0,i) \in \delta^+(0)} = 1 \\
+		& \sum_{(0,j) \in \delta^+(0)} f_{0j}^k = x_k & \forall k \in V \\
+		& \sum_{(j,i) \in \delta^-(i)} f_{ji}^k - \sum_{(i,j) \in \delta^+(i)} f_{ij}^k = 0 & \forall j,k \in V, \, j \neq k  \\
+		& \sum_{(j,k) \in \delta^-(k)} f_{jk}^k - \sum_{(k,j) \in \delta^+(k)} f_{kj}^k = x_k & \forall k \in V   \\
+		& f_{ij}^k \leq a_{ij} & \forall k \in V, \, \forall (i,j) \in A  \\
+		& x_i \in \lbrace 0,1 \rbrace & \forall i \in V^0  \\
+		& a_{ij} \in \lbrace 0,1 \rbrace & \forall (i,j) \in A \\
+		& f_{ij}^k \in \R^+ & \forall k \in V, \, \forall (i,j) \in A 
+	\end{align*}
+	
+	\newpage
+	\section{Results}	
+	
+	In the Tables \ref{tab:MTZ}, \ref{tab:SCF} and \ref{tab:MCF} the results for the 10 given graphs (with $k = \lceil 0.2 \, \lvert V \rvert \rceil $ and $k = \lceil 0.5 \, \lvert V \rvert \rceil$) are given. The implemented algorithm is able to solve all graphs for the Single Commodity Formulation (allthough with a small gap left for the hardest problem). With the Miller Tucker Zemlin formulation the algorithm runs out of time (the time limit is set to 1 hour) for two of the 20 problems.
+	
+	The Multi Commodity Flow formulation needs a lot more variables and constraints ($\Theta ( \lvert V \rvert \cdot \lvert E \rvert )$) than the other two formulations ($\Theta ( \lvert E \rvert ) $). This is illustrated in Table \ref{tab:vars_cons}. 
+	
+	Thus the problem size for the Multi Commodity Flow formulation blows up fast and as illustrated in Table \ref{tab:build_time} we are not able to formulate the problem in a reasonable time anymore. Table \ref{tab:build_time} also compares the time to formulate the problem from scratch with a formulation with an lp-file that has been produced and saved in a former first run of the problem. We easily see that it saves a lot of time to be able to rerun a problem with an lp-file.
+	
+	So we are able to formulate and solve the given problem for the first seven graphs for the Multi Commodity Flow formulation and it is able to solve the problems for all but the $7$th graph with $k=150$. Here we run out of memory and the algorithm quits (see Table \ref{tab:MCF}).
+	
+	In the runtime comparison in Table \ref{tab:runtime} we see that the Miller Tucker Zemlin and the Single Commodity Flow formulation are quite comparable with respect to their runtime and the Multi Commodity Flow formulation is significantly slower.
+	
+	Furthermore in Table \ref{tab:runtime} two slightly different variations of the Multi Commodity Flow formulation are compared. In the \emph{MCF*} formulation the constraint \eqref{mcf: last_flow} is replaced by the weaker constraint
+	\begin{equation}
+		\sum_{(j,k) \in \delta^-(k)} f_{jk}^k = x_k  \quad \forall k \in V  \label{mcf2: last_flow}. \\
+	\end{equation}
+	As the algorithm for this formulation still produces the same results it is easy to see in Table \ref{tab:runtime} that the runtime is signifcantly slower than with the original constraint \eqref{mcf: last_flow}.
+	
+	% Table generated by Excel2LaTeX from sheet 'MTZ_final_for_doc'
+	\begin{table}[htbp]
+		\centering
+		\caption{Results for the Miller Tucker Zemlin formulation}
+		\begin{tabular}{rrr|rrrrrr}
+			\toprule
+			\textbf{graph} & \textbf{\#nodes} & \textbf{k} & \textbf{opt} & \textbf{time} & \textbf{gap} & \textbf{status} & \textbf{\#vars} & \textbf{\#cons} \\
+			\midrule
+			g01   & 10    & 2     & 46    & 0     & 0\%   & integer optimal solution & 86    & 154 \\
+			g01   & 10    & 5     & 477   & 0     & 0\%   & integer optimal solution & 86    & 154 \\
+			g02   & 20    & 4     & 373   & 0     & 0\%   & integer optimal solution & 172   & 306 \\
+			g02   & 20    & 10    & 1.390 & 0     & 0\%   & integer optimal solution & 172   & 306 \\
+			g03   & 50    & 10    & 725   & 0     & 0\%   & integer optimal solution & 454   & 810 \\
+			g03   & 50    & 25    & 3.074 & 1     & 0\%   & integer optimal solution & 454   & 810 \\
+			g04   & 70    & 14    & 909   & 0     & 0\%   & integer optimal solution & 662   & 1.186 \\
+			g04   & 70    & 35    & 3.292 & 1     & 0\%   & integer optimal solution & 662   & 1.186 \\
+			g05   & 100   & 20    & 1.235 & 1     & 0\%   & integer optimal solution & 1.002 & 1.806 \\
+			g05   & 100   & 50    & 4.898 & 6     & 0\%   & integer optimal solution & 1.002 & 1.806 \\
+			g06   & 200   & 40    & 2.068 & 19    & 0\%   & integer optimal solution & 2.400 & 4.402 \\
+			g06   & 200   & 100   & 6.705 & 11    & 0\%   & integer optimal solution & 2.400 & 4.402 \\
+			g07   & 300   & 60    & 1.335 & 5     & 0\%   & integer optimal solution & 7.202 & 13.806 \\
+			g07   & 300   & 150   & 4.533 & 7     & 0\%   & integer optimal solution & 7.202 & 13.806 \\
+			g08   & 400   & 80    & 1.620 & 5     & 0\%   & integer optimal solution & 9.602 & 18.406 \\
+			g08   & 400   & 200   & 5.787 & 28    & 0\%   & integer optimal solution & 9.602 & 18.406 \\
+			g09   & 1000  & 200   & 2.289 & 173   & 0\%   & integer optimal solution & 42.002 & 82.006 \\
+			g09   & 1000  & 500   & 7.595 & 3.603 & \textbf{0,23\%} & time limit exceeded & 42.002 & 82.006 \\
+			g10   & 2000  & 400   & 4.182 & 405   & 0\%   & integer optimal solution & 84.002 & 164.006 \\
+			g10   & 2000  & 1000  & 14.991 & 3.600 & \textbf{0,19\%} & time limit exceeded & 84.002 & 164.006 \\
+		\end{tabular}%
+		\label{tab:MTZ}%
+	\end{table}%	
+	
+	% Table generated by Excel2LaTeX from sheet 'SCF_final_for_doc'
+	\begin{table}[htbp]
+		\centering
+		\caption{Results for the Single Commodity Flow formulation}
+		\begin{tabular}{rrr|rrrrrr}
+			\toprule
+			\textbf{graph} & \textbf{\#nodes} & \textbf{k} & \textbf{opt} & \textbf{time} & \textbf{gap} & \textbf{status} & \textbf{\#vars} & \textbf{\#cons} \\
+			\midrule
+			g01   & 10    & 2     & 46    & 0     & 0\%   & integer optimal solution & 139   & 154 \\
+			g01   & 10    & 5     & 477   & 0     & 0\%   & integer optimal solution & 139   & 154 \\
+			g02   & 20    & 4     & 373   & 0     & 0\%   & integer optimal solution & 281   & 306 \\
+			g02   & 20    & 10    & 1.390 & 0     & 0\%   & integer optimal solution & 281   & 306 \\
+			g03   & 50    & 10    & 725   & 0     & 0\%   & integer optimal solution & 755   & 810 \\
+			g03   & 50    & 25    & 3.074 & 0     & 0\%   & integer optimal solution & 755   & 810 \\
+			g04   & 70    & 14    & 909   & 1     & 0\%   & integer optimal solution & 1.111 & 1.186 \\
+			g04   & 70    & 35    & 3.292 & 0     & 0\%   & integer optimal solution & 1.111 & 1.186 \\
+			g05   & 100   & 20    & 1.235 & 1     & 0\%   & integer optimal solution & 1.701 & 1.806 \\
+			g05   & 100   & 50    & 4.898 & 1     & 0\%   & integer optimal solution & 1.701 & 1.806 \\
+			g06   & 200   & 40    & 2.068 & 3     & 0\%   & integer optimal solution & 4.197 & 4.402 \\
+			g06   & 200   & 100   & 6.705 & 2     & 0\%   & integer optimal solution & 4.197 & 4.402 \\
+			g07   & 300   & 60    & 1.335 & 5     & 0\%   & integer optimal solution & 13.501 & 13.806 \\
+			g07   & 300   & 150   & 4.534 & 12    & 0\%   & integer optimal solution & 13.501 & 13.806 \\
+			g08   & 400   & 80    & 1.620 & 9     & 0\%   & integer optimal solution & 18.001 & 18.406 \\
+			g08   & 400   & 200   & 5.787 & 21    & 0\%   & integer optimal solution & 18.001 & 18.406 \\
+			g09   & 1000  & 200   & 2.289 & 272   & 0\%   & integer optimal solution & 81.001 & 82.006 \\
+			g09   & 1000  & 500   & 7.595 & 432   & 0\%   & integer optimal solution & 81.001 & 82.006 \\
+			g10   & 2000  & 400   & 4.182 & 1.571 & 0\%   & integer optimal solution & 162.001 & 164.006 \\
+			g10   & 2000  & 1000  & 14.991 & 2.167 & \textbf{0,01\%} & integer optimal, tolerance & 162.001 & 164.006 \\
+		\end{tabular}%
+		\label{tab:SCF}%
+	\end{table}%
+
+	% Table generated by Excel2LaTeX from sheet 'MCF_final_for_doc'
+	\begin{table}[htbp]
+		\centering
+		\caption{Results for the Multi Commodity Flow formulation}
+		\begin{tabular}{rrr|rrrrrr}
+			\toprule
+			\textbf{graph} & \textbf{\#nodes} & \textbf{k} & \textbf{opt} & \textbf{time} & \textbf{gap} & \textbf{status} & \textbf{\#vars} & \textbf{\#cons} \\
+			\midrule
+			g01   & 10    & 2     & 46    & 0     & 0\%   & integer optimal solution & 716   & 830 \\
+			g01   & 10    & 5     & 477   & 0     & 0\%   & integer optimal solution & 716   & 830 \\
+			g02   & 20    & 4     & 373   & 0     & 0\%   & integer optimal solution & 2752  & 3176 \\
+			g02   & 20    & 10    & 1.390 & 0     & 0\%   & integer optimal solution & 2752  & 3176 \\
+			g03   & 50    & 10    & 725   & 1     & 0\%   & integer optimal solution & 18004 & 20558 \\
+			g03   & 50    & 25    & 3.074 & 1     & 0\%   & integer optimal solution & 18004 & 20558 \\
+			g04   & 70    & 14    & 909   & 6     & 0\%   & integer optimal solution & 36.992 & 41.966 \\
+			g04   & 70    & 35    & 3.292 & 5     & 0\%   & integer optimal solution & 36.992 & 41.966 \\
+			g05   & 100   & 20    & 1.235 & 5     & 0\%   & integer optimal solution & 80.902 & 91.006 \\
+			g05   & 100   & 50    & 4.898 & 12    & 0\%   & integer optimal solution & 80.902 & 91.006 \\
+			g06   & 200   & 40    & 2.068 & 433   & 0\%   & integer optimal solution & 401.800 & 442.004 \\
+			g06   & 200   & 100   & 6.705 & 484   & 0\%   & integer optimal solution & 401.800 & 442.004 \\
+			g07   & 300   & 60    & 1.335 & 614   & 0\%   & integer optimal solution & 1.986.902 & 2.077.206 \\
+			g07   & 300   & 150   &       &       &       & \textbf{out of memory} & 1.986.902 & 2.077.206 \\
+		\end{tabular}%
+		\label{tab:MCF}%
+	\end{table}%
+	
+
+	% Table generated by Excel2LaTeX from sheet 'runtime_gap'
+	\begin{table}[htbp]
+		\centering
+		\caption{Comparison of runtime}
+		\begin{tabular}{rrr|rr|rr|rr|rr}
+			&       &       & \multicolumn{8}{c}{running time in seconds / final duality gap } \\
+			\midrule
+			\multicolumn{1}{p{3em}}{\textbf{graph}} & \multicolumn{1}{p{3em}}{\textbf{\#nodes}} & \multicolumn{1}{r|}{\textbf{k}} & \multicolumn{2}{p{6em}|}{\textbf{MTZ}} & \multicolumn{2}{p{6em}|}{\textbf{SCF}} & \multicolumn{2}{p{6em}|}{\textbf{MCF}} & \multicolumn{2}{p{6em}}{\textbf{MCF*}} \\
+			\midrule
+			g01   & 10    & 2     & 0     &       & 0     &       & 0     &       & 0     &  \\
+			g01   & 10    & 5     & 0     &       & 0     &       & 0     &       & 0     &  \\
+			g02   & 20    & 4     & 0     &       & 0     &       & 0     &       & 0     &  \\
+			g02   & 20    & 10    & 0     &       & 0     &       & 0     &       & 0     &  \\
+			g03   & 50    & 10    & 0     &       & 0     &       & 1     &       & 1     &  \\
+			g03   & 50    & 25    & 1     &       & 0     &       & 1     &       & 1     &  \\
+			g04   & 70    & 14    & 0     &       & 1     &       & 6     &       & 7     &  \\
+			g04   & 70    & 35    & 1     &       & 0     &       & 5     &       & 9     &  \\
+			g05   & 100   & 20    & 1     &       & 1     &       & 5     &       & 11    &  \\
+			g05   & 100   & 50    & 6     &       & 1     &       & 12    &       & 29    &  \\
+			g06   & 200   & 40    & 19    &       & 3     &       & 433   &       & 910   &  \\
+			g06   & 200   & 100   & 11    &       & 2     &       & 484   &       & 1.959 &  \\
+			g07   & 300   & 60    & 5     &       & 5     &       & 614   &       &       &  \\
+			g07   & 300   & 150   & 7     &       & 12    &       & OOM   &       &       &  \\
+			g08   & 400   & 80    & 5     &       & 9     &       &       &       &       &  \\
+			g08   & 400   & 200   & 28    &       & 21    &       &       &       &       &  \\
+			g09   & 1.000 & 200   & 173   &       & 272   &       &       &       &       &  \\
+			g09   & 1.000 & 500   & TL    & 0,23\% & 432   &       &       &       &       &  \\
+			g10   & 2.000 & 400   & 405   &       & 1.571 &       &       &       &       &  \\
+			g10   & 2.000 & 1.000 & TL    & 0,19\% & 2.167 & 0,01\% &       &       &       &  \\
+		\end{tabular}%
+		\label{tab:runtime}%
+	\end{table}%
+
+	
+	% Table generated by Excel2LaTeX from sheet 'vars_cons'
+	\begin{table}[htbp]
+		\centering
+		\caption{Comparison of number of variables and constraints}
+		\begin{tabular}{rr|rr|rr|rr}
+			&       & \multicolumn{6}{c}{\# variables / constraints} \\
+			\midrule
+			\multicolumn{1}{p{3.5em}}{\textbf{graph}} & \multicolumn{1}{p{3.5em}|}{\textbf{\#nodes}} & \multicolumn{2}{p{9em}|}{\textbf{MTZ}} & \multicolumn{2}{p{9em}|}{\textbf{SCF}} & \multicolumn{2}{p{9em}}{\textbf{MCF}} \\
+			\midrule
+			g01   & 10    & 86    & 154   & 139   & 154   & 716   & 830 \\
+			g02   & 20    & 172   & 306   & 281   & 306   & 2752  & 3176 \\
+			g03   & 50    & 454   & 810   & 755   & 810   & 18004 & 20558 \\
+			g04   & 70    & 662   & 1.186 & 1.111 & 1.186 & 36.992 & 41.966 \\
+			g05   & 100   & 1.002 & 1.806 & 1.701 & 1.806 & 80.902 & 91.006 \\
+			g06   & 200   & 2.400 & 4.402 & 4.197 & 4.402 & 401.800 & 442.004 \\
+			g07   & 300   & 7.202 & 13.806 & 13.501 & 13.806 & 1.986.902 & 2.077.206 \\
+			g08   & 400   & 9.602 & 18.406 & 18.001 & 18.406 &       &  \\
+			g09   & 1.000 & 42.002 & 82.006 & 81.001 & 82.006 &       &  \\
+			g10   & 2.000 & 84.002 & 164.006 & 162.001 & 164.006 &       &  \\
+		\end{tabular}%
+		\label{tab:vars_cons}%
+	\end{table}%
+	
+	% Table generated by Excel2LaTeX from sheet 'build_time'
+	\begin{table}[htbp]
+		\centering
+		\caption{Comparison of the time to formulate the problem in CPLEX}
+		\begin{tabular}{rr|rr|rr|rr}
+			&       & \multicolumn{6}{c}{time to build model from scratch / from lp file} \\
+			\midrule
+			\multicolumn{1}{p{3.5em}}{\textbf{graph}} & \multicolumn{1}{p{3.5em}|}{\textbf{\#nodes}} & \multicolumn{2}{p{9em}|}{\textbf{MTZ}} & \multicolumn{2}{p{9em}|}{\textbf{SCF}} & \multicolumn{2}{p{9em}}{\textbf{MCF}} \\
+			\midrule
+			g01   & 10    & 0     & 0     & 0     & 0     & 0     & 0 \\
+			g02   & 20    & 0     & 0     & 0     & 0     & 1     & 0 \\
+			g03   & 50    & 0     & 2     & 0     & 0     & 16    & 4 \\
+			g04   & 70    & 0     & 0     & 0     & 0     & 50    & 2 \\
+			g05   & 100   & 1     & 0     & 1     & 0     & 231   & 5 \\
+			g06   & 200   & 2     & 0     & 2     & 0     & 3520  & 24 \\
+			g07   & 300   & 6     & 1     & 6     & 1     & 39844 & 361 \\
+			g08   & 400   & 9     & 1     & 10    & 1     &       &  \\
+			g09   & 1.000 & 79    & 4     & 51    & 4     &       &  \\
+			g10   & 2.000 & 1070  & 7     & 653   & 9     &       &  \\
+		\end{tabular}%
+		\label{tab:build_time}%
+	\end{table}%
+
+	
+	
+\end{document}

@@ -121,7 +121,7 @@ def build_common_k_constraints(mdl, nodes, node_vars, arcs, arc_vars, k_var, n_e
     return mdl
 
 def build_MTZ_vars(mdl, nodes):
-    u_vars = mdl.integer_var_list(nodes, lb=0, name='u')
+    u_vars = mdl.continuous_var_list(nodes, name='u')
 
     return mdl, u_vars
 
@@ -146,7 +146,7 @@ def build_MTZ_constraints(mdl, nodes, node_vars, arcs, arc_vars, u_vars, k):
 
 def build_SCF_vars(mdl, arcs, k):
     #f_vars = mdl.integer_var_list(arcs, lb=0, ub=k, name='f')
-    f_vars = mdl.integer_var_list(arcs, lb=0, name='f')
+    f_vars = mdl.continuous_var_list(arcs, name='f')
     return mdl, f_vars
 
 
@@ -172,7 +172,7 @@ def build_SCF_constraints(mdl, nodes, node_vars, arcs, arc_vars, f_vars, k):
 
 def build_MCF_vars(mdl, k_arcs):
     #fk_vars = mdl.integer_var_list(k_arcs, lb=0, ub=1, name='fk')    
-    fk_vars = mdl.integer_var_list(k_arcs, lb=0, name='fk')
+    fk_vars = mdl.continuous_var_list(k_arcs, name='fk')
     return mdl, fk_vars
 
 
